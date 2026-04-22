@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Excusas de Desarrolladores — CRUD</title>
-  //<name-archive>excusas-devs.html</name-archive>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -169,44 +168,10 @@
     /* ── Toolbar ── */
     .toolbar {
       display: flex;
+      justify-content: flex-end;
       gap: 8px;
       margin-bottom: 1.5rem;
     }
-
-    .search-wrap {
-      flex: 1;
-      position: relative;
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text-dim);
-      pointer-events: none;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 9px 12px 9px 36px;
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--text);
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input[type="text"]:focus {
-      border-color: var(--accent);
-    }
-
-    input[type="text"]::placeholder { color: var(--text-dim); }
 
     button {
       font-family: var(--mono);
@@ -291,7 +256,29 @@
       text-align: right;
     }
 
-    .item-num.classic { color: var(--accent); }
+    .btn-fav {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .btn-fav:hover { border-color: var(--accent); background: rgba(168,255,120,0.08); }
+    .btn-fav.active { border-color: var(--accent); background: rgba(168,255,120,0.12); }
+    .btn-fav .star-off { display: inline; }
+    .btn-fav .star-on  { display: none; }
+    .btn-fav.active .star-off { display: none; }
+    .btn-fav.active .star-on  { display: inline; }
 
     .item-text {
       flex: 1;
@@ -503,36 +490,28 @@
   <header class="header">
     <div class="header-top">
       <div class="logo-area">
-        <div class="logo-tag">by Luis Santibáñez</div>
-        <h1>Excusas de <span>Desarrolladores</span></h1>
-        <p class="header-sub">El repositorio más honesto del mundo</p>
+        <div class="logo-tag">v1.0.0 — CRUD</div>
+        <h1>Excusas de<br><span>Desarrolladores</span></h1>
+        <p class="header-sub">by Luis Santibáñez Astorga</p>
       </div>
       <div class="version-chip">git blame → everyone else</div>
     </div>
   </header>
 
   <!-- Stats -->
-  <div class="stats">
+  <div class="stats" style="grid-template-columns: repeat(2,1fr)">
     <div class="stat">
       <div class="stat-val" id="stat-total">10</div>
       <div class="stat-lbl">Total</div>
     </div>
     <div class="stat">
-      <div class="stat-val" id="stat-visible">10</div>
-      <div class="stat-lbl">Visibles</div>
-    </div>
-    <div class="stat">
       <div class="stat-val" id="stat-classic">3</div>
-      <div class="stat-lbl">Clásicas</div>
+      <div class="stat-lbl">Favoritas ⭐</div>
     </div>
   </div>
 
   <!-- Toolbar -->
   <div class="toolbar">
-    <div class="search-wrap">
-      <span class="search-icon">/</span>
-      <input type="text" id="search" placeholder="Buscar excusa..." oninput="renderList()" />
-    </div>
     <button class="btn-add" onclick="openAdd()">+ Nueva</button>
   </div>
 
@@ -540,14 +519,14 @@
   <div class="list" id="list"></div>
   <div class="empty" id="empty">
     <div class="empty-icon">🤷</div>
-    No hay excusas que coincidan.<br>
+    No hay excusas aquí.<br>
     <span style="opacity:0.6">Eso sería una primera vez.</span>
   </div>
 
   <!-- Footer -->
   <footer class="footer">
     <span class="footer-note">// <span>Ctrl+Enter</span> para guardar · <span>Esc</span> para cerrar</span>
-    <span class="footer-note">⭐ = clásica de todos los tiempos</span>
+    <span class="footer-note">⭐ = marcar como favorita</span>
   </footer>
 
 </div>
@@ -585,7 +564,7 @@
 </div>
 
 <script>
-  const CLASSICS = [0, 1, 9];
+  let favorites = new Set([0, 1, 9]);
 
   let excusas = [
     "En mi máquina funciona perfectamente.",
@@ -603,26 +582,23 @@
   let editIdx = null;
   let deleteIdx = null;
 
-  function highlight(text, q) {
-    if (!q) return text;
-    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(regex, '<mark>$1</mark>');
+  function toggleFav(i) {
+    if (favorites.has(i)) {
+      favorites.delete(i);
+    } else {
+      favorites.add(i);
+    }
+    renderList();
   }
 
   function renderList() {
-    const q = document.getElementById('search').value.trim().toLowerCase();
     const listEl = document.getElementById('list');
     const emptyEl = document.getElementById('empty');
 
-    const filtered = excusas
-      .map((e, i) => ({ e, i }))
-      .filter(({ e }) => e.toLowerCase().includes(q));
-
     document.getElementById('stat-total').textContent = excusas.length;
-    document.getElementById('stat-visible').textContent = filtered.length;
-    document.getElementById('stat-classic').textContent = CLASSICS.filter(c => c < excusas.length).length;
+    document.getElementById('stat-classic').textContent = favorites.size;
 
-    if (!filtered.length) {
+    if (!excusas.length) {
       listEl.innerHTML = '';
       emptyEl.style.display = 'block';
       return;
@@ -630,12 +606,17 @@
 
     emptyEl.style.display = 'none';
 
-    listEl.innerHTML = filtered.map(({ e, i }) => `
+    const sorted = excusas
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => (favorites.has(b.i) ? 1 : 0) - (favorites.has(a.i) ? 1 : 0));
+
+    listEl.innerHTML = sorted.map(({ e, i }) => `
       <div class="item-card">
-        <span class="item-num ${CLASSICS.includes(i) ? 'classic' : ''}">
-          ${CLASSICS.includes(i) ? '⭐' : String(i + 1).padStart(2, '0')}
-        </span>
-        <span class="item-text">${highlight(e, q)}</span>
+        <button class="btn-fav ${favorites.has(i) ? 'active' : ''}" onclick="toggleFav(${i})" title="${favorites.has(i) ? 'Quitar favorita' : 'Marcar favorita'}">
+          <span class="star-off">☆</span>
+          <span class="star-on">⭐</span>
+        </button>
+        <span class="item-text">${e}</span>
         <div class="item-actions">
           <button class="btn-edit" onclick="openEdit(${i})" title="Editar">editar</button>
           <button class="btn-del" onclick="openDelete(${i})" title="Eliminar">borrar</button>
@@ -645,6 +626,7 @@
   }
 
   /* ── Agregar ── */
+
   function openAdd() {
     editIdx = null;
     document.getElementById('modal-title').textContent = '// nueva_excusa';
@@ -702,6 +684,10 @@
 
   function doDelete() {
     if (deleteIdx !== null) {
+      favorites.delete(deleteIdx);
+      const newFavs = new Set();
+      favorites.forEach(f => { if (f < deleteIdx) newFavs.add(f); else if (f > deleteIdx) newFavs.add(f - 1); });
+      favorites = newFavs;
       excusas.splice(deleteIdx, 1);
       closeConfirm();
       renderList();
