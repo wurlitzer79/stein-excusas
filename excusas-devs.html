@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Excusas de Desarrolladores — CRUD</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --surface2: #1f1f1f;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.15);
+      --accent: #a8ff78;
+      --accent2: #78ffd6;
+      --accent-dark: #2a4a1f;
+      --text: #f0f0f0;
+      --text-muted: #888;
+      --text-dim: #555;
+      --danger: #ff6b6b;
+      --danger-bg: rgba(255,107,107,0.1);
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+      --radius: 4px;
+      --radius-lg: 8px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ── */
+    .header {
+      margin-bottom: 3rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 2rem;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .logo-area {}
+
+    .logo-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-tag::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .header-sub {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-weight: 300;
+    }
+
+    .version-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 2px;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+
+    /* ── Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat {
+      background: var(--surface);
+      padding: 14px 18px;
+    }
+
+    .stat-val {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .search-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px 9px 36px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="text"]::placeholder { color: var(--text-dim); }
+
+    button {
+      font-family: var(--mono);
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text-muted);
+      padding: 9px 16px;
+    }
+
+    .btn:hover { border-color: var(--text-muted); color: var(--text); background: var(--surface2); }
+
+    .btn-add {
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      color: #0d0d0d;
+      padding: 9px 18px;
+      font-weight: 600;
+    }
+
+    .btn-add:hover { background: #bfff99; border-color: #bfff99; }
+
+    .btn-edit {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-del {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .btn-del:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
+
+    /* ── List ── */
+    .list { display: flex; flex-direction: column; gap: 1px; }
+
+    .item-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.15s, background 0.15s;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .item-card:hover {
+      border-color: var(--border2);
+      background: var(--surface2);
+    }
+
+    .item-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    .item-num.classic { color: var(--accent); }
+
+    .item-text {
+      flex: 1;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 300;
+      line-height: 1.5;
+    }
+
+    .item-text mark {
+      background: rgba(168,255,120,0.2);
+      color: var(--accent);
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* ── Empty ── */
+    .empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 13px;
+      display: none;
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    /* ── Modal ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 1rem;
+      backdrop-filter: blur(4px);
+    }
+
+    .overlay.active { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 500px;
+      animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
+    .modal-title {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 18px;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .modal-close:hover { color: var(--text); background: var(--surface2); }
+
+    .field-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.6;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-dim); }
+
+    .modal-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      font-family: var(--mono);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 1.25rem;
+    }
+
+    .btn-save {
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      color: #0d0d0d;
+      padding: 9px 20px;
+      font-weight: 600;
+    }
+
+    .btn-save:hover { background: #bfff99; }
+
+    /* ── Confirm ── */
+    .confirm-modal {
+      max-width: 380px;
+    }
+
+    .confirm-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 300;
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+    }
+
+    .confirm-text strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .btn-confirm-del {
+      background: var(--danger);
+      border: 1px solid var(--danger);
+      color: #fff;
+      padding: 9px 20px;
+      font-weight: 600;
+    }
+
+    .btn-confirm-del:hover { background: #ff4f4f; }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 3rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .footer-note span { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      .stats { grid-template-columns: repeat(3, 1fr); }
+      .stat { padding: 10px 12px; }
+      .stat-val { font-size: 20px; }
+      .item-actions { flex-direction: column; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="logo-area">
+        <div class="logo-tag">v1.0.0 — CRUD</div>
+        <h1>Excusas de<br><span>Desarrolladores</span></h1>
+        <p class="header-sub">El repositorio más honesto del mundo</p>
+      </div>
+      <div class="version-chip">git blame → everyone else</div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val" id="stat-total">10</div>
+      <div class="stat-lbl">Total</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-visible">10</div>
+      <div class="stat-lbl">Visibles</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-classic">3</div>
+      <div class="stat-lbl">Clásicas</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">/</span>
+      <input type="text" id="search" placeholder="Buscar excusa..." oninput="renderList()" />
+    </div>
+    <button class="btn-add" onclick="openAdd()">+ Nueva</button>
+  </div>
+
+  <!-- List -->
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">
+    <div class="empty-icon">🤷</div>
+    No hay excusas que coincidan.<br>
+    <span style="opacity:0.6">Eso sería una primera vez.</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <span class="footer-note">// <span>Ctrl+Enter</span> para guardar · <span>Esc</span> para cerrar</span>
+    <span class="footer-note">⭐ = clásica de todos los tiempos</span>
+  </footer>
+
+</div>
+
+<!-- Modal: Agregar / Editar -->
+<div class="overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">// nueva_excusa</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="field-label">Texto de la excusa</div>
+    <textarea id="modal-input" placeholder="Escribe la excusa aquí..."></textarea>
+    <div class="modal-hint">// Ctrl+Enter para guardar</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar eliminar -->
+<div class="overlay" id="confirm-overlay" onclick="if(event.target===this)closeConfirm()">
+  <div class="modal confirm-modal">
+    <div class="modal-header">
+      <span class="modal-title" style="color:var(--danger)">// delete()</span>
+      <button class="modal-close" onclick="closeConfirm()">×</button>
+    </div>
+    <p class="confirm-text" id="confirm-text"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn-confirm-del" onclick="doDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CLASSICS = [0, 1, 9];
+
+  let excusas = [
+    "En mi máquina funciona perfectamente.",
+    "Eso nunca pasó en desarrollo, solo en producción.",
+    "No toqué nada y se rompió solo.",
+    "Es un problema del navegador, no del código.",
+    "Ya lo arreglé, solo necesita un hard refresh.",
+    "El cliente cambió los requerimientos a último momento.",
+    "Eso no estaba en el ticket.",
+    "El QA no lo probó en el flujo correcto.",
+    "Es un edge case muy raro, jamás va a pasar de nuevo.",
+    "Funcionaba ayer, alguien debe haber tocado el servidor."
+  ];
+
+  let editIdx = null;
+  let deleteIdx = null;
+
+  function highlight(text, q) {
+    if (!q) return text;
+    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+  }
+
+  function renderList() {
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
+
+    const filtered = excusas
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.toLowerCase().includes(q));
+
+    document.getElementById('stat-total').textContent = excusas.length;
+    document.getElementById('stat-visible').textContent = filtered.length;
+    document.getElementById('stat-classic').textContent = CLASSICS.filter(c => c < excusas.length).length;
+
+    if (!filtered.length) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = filtered.map(({ e, i }) => `
+      <div class="item-card">
+        <span class="item-num ${CLASSICS.includes(i) ? 'classic' : ''}">
+          ${CLASSICS.includes(i) ? '⭐' : String(i + 1).padStart(2, '0')}
+        </span>
+        <span class="item-text">${highlight(e, q)}</span>
+        <div class="item-actions">
+          <button class="btn-edit" onclick="openEdit(${i})" title="Editar">editar</button>
+          <button class="btn-del" onclick="openDelete(${i})" title="Eliminar">borrar</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  /* ── Agregar ── */
+  function openAdd() {
+    editIdx = null;
+    document.getElementById('modal-title').textContent = '// nueva_excusa';
+    document.getElementById('modal-input').value = '';
+    document.getElementById('modal-overlay').classList.add('active');
+    setTimeout(() => document.getElementById('modal-input').focus(), 60);
+  }
+
+  /* ── Editar ── */
+  function openEdit(i) {
+    editIdx = i;
+    document.getElementById('modal-title').textContent = `// editar[${i}]`;
+    document.getElementById('modal-input').value = excusas[i];
+    document.getElementById('modal-overlay').classList.add('active');
+    setTimeout(() => document.getElementById('modal-input').focus(), 60);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+  }
+
+  function saveModal() {
+    const val = document.getElementById('modal-input').value.trim();
+    const ta = document.getElementById('modal-input');
+    if (!val) {
+      ta.style.borderColor = 'var(--danger)';
+      ta.focus();
+      setTimeout(() => ta.style.borderColor = '', 800);
+      return;
+    }
+    if (editIdx !== null) {
+      excusas[editIdx] = val;
+    } else {
+      excusas.push(val);
+    }
+    closeModal();
+    renderList();
+  }
+
+  /* ── Eliminar ── */
+  function openDelete(i) {
+    deleteIdx = i;
+    const preview = excusas[i].length > 70
+      ? excusas[i].substring(0, 70) + '...'
+      : excusas[i];
+    document.getElementById('confirm-text').innerHTML =
+      `¿Eliminar esta excusa? <br><br><strong>"${preview}"</strong><br><br>Esta acción no se puede deshacer.`;
+    document.getElementById('confirm-overlay').classList.add('active');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirm-overlay').classList.remove('active');
+    deleteIdx = null;
+  }
+
+  function doDelete() {
+    if (deleteIdx !== null) {
+      excusas.splice(deleteIdx, 1);
+      closeConfirm();
+      renderList();
+    }
+  }
+
+  /* ── Atajos de teclado ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeConfirm(); }
+    if (e.key === 'Enter' && e.ctrlKey) {
+      if (document.getElementById('modal-overlay').classList.contains('active')) saveModal();
+    }
+  });
+
+  /* ── Init ── */
+  renderList();
+</script>
+
+</body>
+</html>
